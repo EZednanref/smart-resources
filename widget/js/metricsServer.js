@@ -5,6 +5,9 @@ const MetricsCollector = require('./metricsCollector');
 
 const app = express();
 const PORT = 3000;
+const MLPredictor = require('./mlPredictor');
+const predictor = new MLPredictor();
+await predictor.initialize();
 
 // Enable CORS pour permettre au widget HTML de se connecter
 app.use(cors());
@@ -85,8 +88,15 @@ async function updateMetrics() {
     // Réinitialiser les métriques des processus
     processCpuGauge.reset();
     processMemoryGauge.reset();
-
-    // Mettre à jour les métriques des processus
+    
+    predictor.addData(metrics);
+    setTimeout(() => {
+      predictor.addFutureValue(metrics.cpu.percentage, metrics.memory.percentage);
+    }, 30000);
+    
+    if (counter % 50 === 0) await predictor.train();
+    const prediction = await predictor.predict();
+    
     metrics.processes.forEach(proc => {
       const labels = { pid: proc.pid.toString(), name: proc.name };
       processCpuGauge.set(labels, proc.cpu);
