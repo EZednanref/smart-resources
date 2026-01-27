@@ -6,4 +6,3 @@ COPY . .
 EXPOSE 3000
 CMD ["node", "js/metricsServer.js"]
 
-AxelLeBoss
