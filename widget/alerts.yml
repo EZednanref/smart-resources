@@ -1,0 +1,45 @@
+groups:
+- name: system-alerts
+  rules:
+
+  # Node exporter CPU
+  - alert: HighNodeCPUUsage
+    expr: 100 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100 > 80
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU usage (node)"
+      description: "CPU usage > 80% for 5 minutes"
+
+  # Node exporter Memory
+  - alert: HighNodeMemoryUsage
+    expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes)
+          / node_memory_MemTotal_bytes * 100 > 90
+    for: 5m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High memory usage (node)"
+      description: "Memory usage > 90%"
+
+  # Ton serveur Node.js
+  - alert: MetricsServerHighCPU
+    expr: system_cpu_usage_percent > 80
+    for: 2m
+    labels:
+      severity: warning
+    annotations:
+      summary: "High CPU usage (metrics-server)"
+      description: "CPU usage > 80% for 2 minutes"
+
+  # Service down
+  - alert: ServiceDown
+    expr: up == 0
+    for: 1m
+    labels:
+      severity: critical
+    annotations:
+      summary: "Service {{ $labels.job }} is down"
+      description: "{{ $labels.instance }} has been unreachable for 1 minute"
+

@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Predictions - CPU/RAM</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+            background: #0f172a;
+            min-height: 100vh;
+            padding: 0;
+            color: #e2e8f0;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 40px 30px;
+        }
+        h1 {
+            color: #f8fafc;
+            margin-bottom: 40px;
+            font-size: 2.25rem;
+            font-weight: 700;
+            letter-spacing: -0.025em;
+        }
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-bottom: 32px;
+        }
+        .status-card {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 28px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .status-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .status-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(148, 163, 184, 0.2);
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+        .status-card:hover::before {
+            opacity: 1;
+        }
+        .status-label {
+            font-size: 0.875rem;
+            color: #94a3b8;
+            margin-bottom: 12px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .status-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+        .status-icon {
+            display: none;
+        }
+        .chart-container {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 32px;
+            margin-bottom: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+        .chart-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+        }
+        .chart-container h2 {
+            color: #f8fafc;
+            margin-bottom: 24px;
+            font-size: 1.25rem;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+        }
+        .chart-wrapper {
+            position: relative;
+            height: 420px;
+        }
+        .controls {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            padding: 14px 20px;
+            border-radius: 10px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            transition: all 0.2s;
+        }
+        .control-group:hover {
+            border-color: rgba(148, 163, 184, 0.2);
+        }
+        label {
+            font-weight: 500;
+            color: #e2e8f0;
+            font-size: 0.9rem;
+        }
+        input, select {
+            padding: 10px 14px;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: #0f172a;
+            color: #e2e8f0;
+            transition: all 0.2s;
+        }
+        select {
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23e2e8f0' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            padding-right: 36px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        input[type="checkbox"] {
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+            accent-color: #3b82f6;
+        }
+        button {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+            border: none;
+            padding: 11px 24px;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.2);
+        }
+        button:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+        }
+        button:active {
+            transform: translateY(0);
+        }
+        .loading {
+            text-align: center;
+            color: #cbd5e1;
+            font-size: 1.1rem;
+            padding: 20px;
+        }
+        .error {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            border: 1px solid rgba(220, 38, 38, 0.3);
+        }
+        .alert {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 16px 24px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 500;
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Prédictions ML - CPU & RAM</h1>
+        
+        <div class="status-bar">
+            <div class="status-card">
+                <div class="status-label">Points de données</div>
+                <div class="status-value" id="dataPoints">-</div>
+            </div>
+            <div class="status-card">
+                <div class="status-label">Statut modèle</div>
+                <div class="status-value" id="modelStatus">-</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label for="horizon">Horizon de prédiction:</label>
+                <select id="horizon">
+                    <option value="30">30 secondes</option>
+                    <option value="60" selected>60 secondes</option>
+                    <option value="90">90 secondes</option>
+                    <option value="120">120 secondes</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <button onclick="refreshPredictions()">Actualiser</button>
+            </div>
+            <div class="control-group">
+                <label>
+                    <input type="checkbox" id="autoRefresh" checked>
+                    Auto-refresh (10s)
+                </label>
+            </div>
+        </div>
+
+        <div id="alerts"></div>
+
+        <div class="chart-container">
+            <h2>Prédictions CPU</h2>
+            <div class="chart-wrapper">
+                <canvas id="cpuChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <h2>Prédictions RAM</h2>
+            <div class="chart-wrapper">
+                <canvas id="ramChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const ML_API = 'http://localhost:5000';
+        let cpuChart, ramChart;
+        let autoRefreshInterval;
+        let currentValuesInterval;
+
+        // Initialiser les graphiques
+        function initCharts() {
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            font: {
+                                size: 13,
+                                weight: '500',
+                                family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
+                            },
+                            padding: 15,
+                            color: '#e2e8f0',
+                            usePointStyle: true,
+                            pointStyle: 'circle'
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        titleColor: '#f8fafc',
+                        bodyColor: '#e2e8f0',
+                        borderColor: 'rgba(148, 163, 184, 0.2)',
+                        borderWidth: 1,
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: '600'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        displayColors: true,
+                        boxPadding: 6
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        title: {
+                            display: true,
+                            text: 'Pourcentage (%)',
+                            color: '#94a3b8',
+                            font: {
+                                size: 13,
+                                weight: '500'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Temps',
+                            color: '#94a3b8',
+                            font: {
+                                size: 13,
+                                weight: '500'
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.1)',
+                            drawBorder: false
+                        },
+                        ticks: {
+                            color: '#94a3b8',
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            };
+
+            // Chart CPU
+            cpuChart = new Chart(document.getElementById('cpuChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Valeur actuelle',
+                            data: [],
+                            borderColor: '#ef4444',
+                            backgroundColor: '#ef4444',
+                            pointRadius: 8,
+                            pointHoverRadius: 10,
+                            showLine: false,
+                            order: 1
+                        },
+                        {
+                            label: 'Prédiction CPU',
+                            data: [],
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            order: 2
+                        }
+                    ]
+                },
+                options: commonOptions
+            });
+
+            // Chart RAM
+            ramChart = new Chart(document.getElementById('ramChart'), {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Valeur actuelle',
+                            data: [],
+                            borderColor: '#ef4444',
+                            backgroundColor: '#ef4444',
+                            pointRadius: 8,
+                            pointHoverRadius: 10,
+                            showLine: false,
+                            order: 1
+                        },
+                        {
+                            label: 'Prédiction RAM',
+                            data: [],
+                            borderColor: '#8b5cf6',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            order: 2
+                        }
+                    ]
+                },
+                options: commonOptions
+            });
+        }
+
+        // Vérifier le statut du service
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${ML_API}/health`);
+                const data = await response.json();
+                
+                document.getElementById('dataPoints').textContent = data.data_points;
+                document.getElementById('modelStatus').textContent = 
+                    data.is_trained ? 'Entraîné' : 'En cours';
+                
+                return data.is_trained;
+            } catch (error) {
+                console.error('Erreur health check:', error);
+                return false;
+            }
+        }
+
+        // Mettre à jour uniquement les valeurs actuelles CPU/RAM (appelé toutes les 1-2 secondes)
+        async function updateCurrentValues() {
+            try {
+                const response = await fetch(`${ML_API}/predict?steps=1`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Mettre à jour le point actuel sur le graphe CPU
+                    if (cpuChart.data.datasets[0]) {
+                        cpuChart.data.datasets[0].data = [data.current_cpu];
+                        cpuChart.update('none'); // 'none' pour éviter l'animation à chaque update
+                    }
+                    
+                    // Mettre à jour le point actuel sur le graphe RAM
+                    if (ramChart.data.datasets[0]) {
+                        ramChart.data.datasets[0].data = [data.current_ram];
+                        ramChart.update('none');
+                    }
+                }
+            } catch (error) {
+                console.error('Erreur update current values:', error);
+            }
+        }
+
+        // Récupérer les prédictions
+        async function fetchPredictions() {
+            const horizon = document.getElementById('horizon').value;
+            
+            try {
+                const response = await fetch(`${ML_API}/predict?steps=${horizon}`);
+                
+                if (!response.ok) {
+                    if (response.status === 503) {
+                        const data = await response.json();
+                        showAlert(`Modèle en cours d'entraînement... ${data.data_points}/${data.required} points collectés`);
+                        return null;
+                    }
+                    throw new Error('Erreur API');
+                }
+                
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                console.error('Erreur fetch predictions:', error);
+                showError('Impossible de récupérer les prédictions');
+                return null;
+            }
+        }
+
+        // Mettre à jour les graphiques
+        function updateCharts(data) {
+            if (!data || !data.predictions) return;
+
+            const { predictions } = data;
+            
+            // Créer les labels : "Maintenant" pour le point actuel, puis "+Xs" pour les prédictions
+            const labels = ['Maintenant', ...predictions.timestamps.map(t => `+${t}s`)];
+
+            // Mettre à jour CPU
+            cpuChart.data.labels = labels;
+            // Dataset 0 : point actuel (seulement à l'index 0)
+            cpuChart.data.datasets[0].data = [data.current_cpu];
+            // Dataset 1 : prédictions (commence à null pour l'index 0, puis les valeurs prédites)
+            cpuChart.data.datasets[1].data = [null, ...predictions.cpu];
+            cpuChart.update();
+
+            // Mettre à jour RAM
+            ramChart.data.labels = labels;
+            // Dataset 0 : point actuel (seulement à l'index 0)
+            ramChart.data.datasets[0].data = [data.current_ram];
+            // Dataset 1 : prédictions (commence à null pour l'index 0, puis les valeurs prédites)
+            ramChart.data.datasets[1].data = [null, ...predictions.ram];
+            ramChart.update();
+
+            // Alertes si prédictions élevées
+            const maxCpu = Math.max(...predictions.cpu);
+            const maxRam = Math.max(...predictions.ram);
+
+            if (maxCpu > 80 || maxRam > 85) {
+                showAlert(`ALERTE: CPU max prédit: ${maxCpu.toFixed(1)}%, RAM max prédite: ${maxRam.toFixed(1)}%`);
+            } else {
+                clearAlerts();
+            }
+        }
+
+        // Rafraîchir les prédictions
+        async function refreshPredictions() {
+            const isTrained = await checkHealth();
+            
+            if (!isTrained) {
+                showAlert('Le modèle n\'est pas encore entraîné. Collecte de données en cours...');
+                return;
+            }
+
+            const data = await fetchPredictions();
+            if (data) {
+                updateCharts(data);
+            }
+        }
+
+        // Afficher une alerte
+        function showAlert(message) {
+            const alertsDiv = document.getElementById('alerts');
+            alertsDiv.innerHTML = `<div class="alert">${message}</div>`;
+        }
+
+        // Afficher une erreur
+        function showError(message) {
+            const alertsDiv = document.getElementById('alerts');
+            alertsDiv.innerHTML = `<div class="error">${message}</div>`;
+        }
+
+        // Effacer les alertes
+        function clearAlerts() {
+            document.getElementById('alerts').innerHTML = '';
+        }
+
+        // Auto-refresh
+        document.getElementById('autoRefresh').addEventListener('change', (e) => {
+            if (e.target.checked) {
+                autoRefreshInterval = setInterval(refreshPredictions, 10000);
+                currentValuesInterval = setInterval(updateCurrentValues, 1500);
+            } else {
+                clearInterval(autoRefreshInterval);
+                clearInterval(currentValuesInterval);
+            }
+        });
+
+        // Initialisation
+        document.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            refreshPredictions();
+            
+            // Auto-refresh des prédictions toutes les 10 secondes
+            autoRefreshInterval = setInterval(refreshPredictions, 10000);
+            
+            // Rafraîchir les valeurs actuelles CPU/RAM toutes les 1.5 secondes
+            currentValuesInterval = setInterval(updateCurrentValues, 1500);
+        });
+    </script>
+</body>
+</html>
