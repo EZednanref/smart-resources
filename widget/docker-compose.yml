@@ -4,8 +4,16 @@ services:
     container_name: metrics-server
     ports:
       - "3000:3000"
+    volumes:
+      - /proc:/host/proc:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - HOST_PROC=/host/proc
+      - NODE_ENV=production
     restart: unless-stopped
-
+    pid: "host"
+    privileged: true
+    
   prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
@@ -13,8 +21,14 @@ services:
       - "9090:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
     restart: unless-stopped
-
+    
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -22,6 +36,9 @@ services:
       - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
     depends_on:
       - prometheus
     restart: unless-stopped
@@ -31,5 +48,31 @@ services:
     container_name: node-exporter
     ports:
       - "9100:9100"
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.sysfs=/host/sys'
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($|/)'
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro,rslave
+    restart: unless-stopped
+  
+  ml:
+    build:
+      context: .
+      dockerfile: backend/ml/Dockerfile.ml
+    container_name: ml
+    ports:
+      - "5000:5000"
+    environment:
+      - METRICS_URL=http://metrics-server:3000/api/metrics
+      - TF_CPP_MIN_LOG_LEVEL=2
+    depends_on:
+      - metrics-server
     restart: unless-stopped
 
+volumes:
+  prometheus-data:
+  grafana-data:

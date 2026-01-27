@@ -6,20 +6,18 @@ const MetricsCollector = require('./metricsCollector');
 const app = express();
 const PORT = 3000;
 
-// Enable CORS pour permettre au widget HTML de se connecter
 app.use(cors());
 app.use(express.json());
-
-// Créer le registre Prometheus
 const register = new client.Registry();
-
-// Métriques par défaut Node.js
 client.collectDefaultMetrics({ register });
-
-// Métriques personnalisées
 const systemCpuGauge = new client.Gauge({
   name: 'system_cpu_usage_percent',
   help: 'CPU usage percentage'
+});
+
+const processCountGauge = new client.Gauge ({
+  name: 'total_process_count',
+  help: 'Total number of processes'
 });
 
 const systemMemoryGauge = new client.Gauge({
@@ -66,7 +64,8 @@ const collector = new MetricsCollector();
 async function updateMetrics() {
   try {
     const metrics = await collector.getAllMetrics();
-
+    processCountGauge.set(metrics.processes.length);
+    console.log(`📊 Nombre de processus récupérés: ${metrics.processes.length}`);
     // Mettre à jour les métriques système
     systemCpuGauge.set(metrics.cpu.percentage);
     systemMemoryGauge.set(metrics.memory.percentage);
