@@ -270,6 +270,10 @@
         let cpuChart, ramChart;
         let autoRefreshInterval;
         let currentValuesInterval;
+        let historyCpu = [];
+        let historyRam = [];
+        let historyTimestamps = [];
+        const MAX_HISTORY = 60; // Garder 60 points d'historique (60 secondes à 1 point/sec)
 
         // Initialiser les graphiques
         function initCharts() {
@@ -372,17 +376,29 @@
                     labels: [],
                     datasets: [
                         {
+                            label: 'Historique',
+                            data: [],
+                            borderColor: '#64748b',
+                            backgroundColor: 'rgba(100, 116, 139, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            pointHoverRadius: 4,
+                            order: 3
+                        },
+                        {
                             label: 'Valeur actuelle',
                             data: [],
                             borderColor: '#ef4444',
                             backgroundColor: '#ef4444',
-                            pointRadius: 8,
-                            pointHoverRadius: 10,
+                            pointRadius: 10,
+                            pointHoverRadius: 12,
                             showLine: false,
                             order: 1
                         },
                         {
-                            label: 'Prédiction CPU',
+                            label: 'Prédiction',
                             data: [],
                             borderColor: '#3b82f6',
                             backgroundColor: 'rgba(59, 130, 246, 0.1)',
@@ -405,17 +421,29 @@
                     labels: [],
                     datasets: [
                         {
+                            label: 'Historique',
+                            data: [],
+                            borderColor: '#64748b',
+                            backgroundColor: 'rgba(100, 116, 139, 0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 2,
+                            pointRadius: 2,
+                            pointHoverRadius: 4,
+                            order: 3
+                        },
+                        {
                             label: 'Valeur actuelle',
                             data: [],
                             borderColor: '#ef4444',
                             backgroundColor: '#ef4444',
-                            pointRadius: 8,
-                            pointHoverRadius: 10,
+                            pointRadius: 10,
+                            pointHoverRadius: 12,
                             showLine: false,
                             order: 1
                         },
                         {
-                            label: 'Prédiction RAM',
+                            label: 'Prédiction',
                             data: [],
                             borderColor: '#8b5cf6',
                             backgroundColor: 'rgba(139, 92, 246, 0.1)',
@@ -457,21 +485,79 @@
                 if (response.ok) {
                     const data = await response.json();
                     
-                    // Mettre à jour le point actuel sur le graphe CPU
-                    if (cpuChart.data.datasets[0]) {
-                        cpuChart.data.datasets[0].data = [data.current_cpu];
-                        cpuChart.update('none'); // 'none' pour éviter l'animation à chaque update
+                    // Ajouter les nouvelles valeurs à l'historique
+                    const now = Date.now();
+                    historyCpu.push(data.current_cpu);
+                    historyRam.push(data.current_ram);
+                    historyTimestamps.push(now);
+                    
+                    // Limiter la taille de l'historique
+                    if (historyCpu.length > MAX_HISTORY) {
+                        historyCpu.shift();
+                        historyRam.shift();
+                        historyTimestamps.shift();
                     }
                     
-                    // Mettre à jour le point actuel sur le graphe RAM
-                    if (ramChart.data.datasets[0]) {
-                        ramChart.data.datasets[0].data = [data.current_ram];
-                        ramChart.update('none');
-                    }
+                    // Mettre à jour les graphiques avec le nouvel historique
+                    updateChartsWithHistory(data);
                 }
             } catch (error) {
                 console.error('Erreur update current values:', error);
             }
+        }
+        
+        // Mettre à jour les graphiques avec l'historique et la valeur actuelle
+        function updateChartsWithHistory(currentData) {
+            // Créer les labels pour l'historique (temps négatifs)
+            const historyLabels = historyTimestamps.map((ts, idx) => {
+                const secondsAgo = Math.round((Date.now() - ts) / 1000);
+                return `-${secondsAgo}s`;
+            });
+            
+            // Si on a des prédictions, les ajouter
+            let allLabels = [...historyLabels, 'Maintenant'];
+            let cpuHistoryData = [...historyCpu];
+            let ramHistoryData = [...historyRam];
+            let cpuCurrentData = new Array(historyLabels.length).fill(null);
+            let ramCurrentData = new Array(historyLabels.length).fill(null);
+            let cpuPredictionData = new Array(historyLabels.length + 1).fill(null);
+            let ramPredictionData = new Array(historyLabels.length + 1).fill(null);
+            
+            // Position de la valeur actuelle
+            cpuCurrentData.push(currentData.current_cpu);
+            ramCurrentData.push(currentData.current_ram);
+            
+            // Ajouter null pour l'historique à la position actuelle
+            cpuHistoryData.push(null);
+            ramHistoryData.push(null);
+            
+            // Si on a des prédictions dans currentData
+            if (currentData.predictions) {
+                const predLabels = currentData.predictions.timestamps.map(t => `+${t}s`);
+                allLabels = [...allLabels, ...predLabels];
+                
+                // Étendre les arrays avec des null pour les prédictions
+                cpuHistoryData.push(...new Array(predLabels.length).fill(null));
+                ramHistoryData.push(...new Array(predLabels.length).fill(null));
+                cpuCurrentData.push(...new Array(predLabels.length).fill(null));
+                ramCurrentData.push(...new Array(predLabels.length).fill(null));
+                cpuPredictionData.push(...currentData.predictions.cpu);
+                ramPredictionData.push(...currentData.predictions.ram);
+            }
+            
+            // Mettre à jour le graphe CPU
+            cpuChart.data.labels = allLabels;
+            cpuChart.data.datasets[0].data = cpuHistoryData; // Historique
+            cpuChart.data.datasets[1].data = cpuCurrentData; // Point actuel
+            cpuChart.data.datasets[2].data = cpuPredictionData; // Prédictions
+            cpuChart.update('none');
+            
+            // Mettre à jour le graphe RAM
+            ramChart.data.labels = allLabels;
+            ramChart.data.datasets[0].data = ramHistoryData; // Historique
+            ramChart.data.datasets[1].data = ramCurrentData; // Point actuel
+            ramChart.data.datasets[2].data = ramPredictionData; // Prédictions
+            ramChart.update('none');
         }
 
         // Récupérer les prédictions
@@ -503,30 +589,12 @@
         function updateCharts(data) {
             if (!data || !data.predictions) return;
 
-            const { predictions } = data;
-            
-            // Créer les labels : "Maintenant" pour le point actuel, puis "+Xs" pour les prédictions
-            const labels = ['Maintenant', ...predictions.timestamps.map(t => `+${t}s`)];
-
-            // Mettre à jour CPU
-            cpuChart.data.labels = labels;
-            // Dataset 0 : point actuel (seulement à l'index 0)
-            cpuChart.data.datasets[0].data = [data.current_cpu];
-            // Dataset 1 : prédictions (commence à null pour l'index 0, puis les valeurs prédites)
-            cpuChart.data.datasets[1].data = [null, ...predictions.cpu];
-            cpuChart.update();
-
-            // Mettre à jour RAM
-            ramChart.data.labels = labels;
-            // Dataset 0 : point actuel (seulement à l'index 0)
-            ramChart.data.datasets[0].data = [data.current_ram];
-            // Dataset 1 : prédictions (commence à null pour l'index 0, puis les valeurs prédites)
-            ramChart.data.datasets[1].data = [null, ...predictions.ram];
-            ramChart.update();
+            // Utiliser la fonction qui gère l'historique
+            updateChartsWithHistory(data);
 
             // Alertes si prédictions élevées
-            const maxCpu = Math.max(...predictions.cpu);
-            const maxRam = Math.max(...predictions.ram);
+            const maxCpu = Math.max(...data.predictions.cpu);
+            const maxRam = Math.max(...data.predictions.ram);
 
             if (maxCpu > 80 || maxRam > 85) {
                 showAlert(`ALERTE: CPU max prédit: ${maxCpu.toFixed(1)}%, RAM max prédite: ${maxRam.toFixed(1)}%`);
