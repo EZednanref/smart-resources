@@ -259,7 +259,7 @@ def data_collector():
                     threading.Thread(target=predictor.train_models).start()
 
         except Exception as e:
-            print(f"❌ Erreur collecte: {e}")
+            print(f"[ERROR] Erreur collecte: {e}")
 
         time.sleep(1)
 
@@ -346,8 +346,8 @@ def metrics():
 
 
 if __name__ == "__main__":
-    print("🤖 ML Predictor Service démarré")
+    print("ml.py démarré")
     print(
-        f"📊 Collecte depuis: {os.getenv('METRICS_URL', 'http://metrics-server:3000/api/metrics')}"
+        f"Collecte depuis: {os.getenv('METRICS_URL', 'http://metrics-server:3000/api/metrics')}"
     )
     app.run(host="0.0.0.0", port=5000, debug=False)
