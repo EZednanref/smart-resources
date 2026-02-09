@@ -67,7 +67,7 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - METRICS_URL=http://metrics-server:3000/api/metrics
+      - METRICS_URL=localhost:3000/api/metrics
       - TF_CPP_MIN_LOG_LEVEL=2
     depends_on:
       - metrics-server
