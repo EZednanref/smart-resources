@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template_string
 from flask_cors import CORS
 import tensorflow as tf
 from tensorflow import keras
@@ -344,6 +344,15 @@ def metrics():
 
     return "\n".join(output), 200, {"Content-Type": "text/plain"}
 
+@app.route("/", methods=["GET"])
+def index():
+    try:
+        # On cherche le fichier à la racine du dossier de travail du conteneur
+        with open("ml-dashboard.html", "r", encoding="utf-8") as f:
+            content = f.read()
+        return render_template_string(content)
+    except Exception as e:
+        return f"Erreur : Impossible de charger le dashboard. {str(e)}", 500
 
 if __name__ == "__main__":
     print("ml.py démarré")
