@@ -8,7 +8,7 @@ docker compose up --build
 
 ## Puis 
 ```
-open front/ml-dashboard.html
+open localhost:5000
 ```
 
 TODO : Ajouter l'intégration à mlflow et pouvoir le consulter

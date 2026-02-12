@@ -8,3 +8,8 @@ devenv.lock
 
 # pre-commit
 .pre-commit-config.yaml
+
+
+#Axel
+venv-smart-ressources/
+.github/
