@@ -1,0 +1,122 @@
+version: '3.8'
+
+services:
+  # ──────────────── Frontend (Nginx) ────────────────
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    networks:
+      - frontend-net
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  # ──────────────── API (FastAPI) ────────────────
+  api:
+    build: ./api
+    networks:
+      - frontend-net
+      - backend-net
+    depends_on:
+      db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql+psycopg2://smartuser:smartpass@db:5432/smartresources
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JWT_SECRET: s3cr3t-jwt-k3y-sm4rt-r3s0urc3s
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRATION_MINUTES: "120"
+    restart: unless-stopped
+
+  # ──────────────── Base de données (PostgreSQL) ────────────────
+  db:
+    image: postgres:15-alpine
+    networks:
+      - backend-net
+    environment:
+      POSTGRES_DB: smartresources
+      POSTGRES_USER: smartuser
+      POSTGRES_PASSWORD: smartpass
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartuser -d smartresources"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # ──────────────── Zookeeper ────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    networks:
+      - backend-net
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    restart: unless-stopped
+
+  # ──────────────── Kafka ────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    networks:
+      - backend-net
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 1
+    restart: unless-stopped
+
+  # ──────────────── Trainer PyTorch ────────────────
+  trainer-pytorch:
+    build: ./trainer-pytorch
+    networks:
+      - backend-net
+    depends_on:
+      - kafka
+    volumes:
+      - datasets:/data/datasets
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    restart: unless-stopped
+
+  # ──────────────── Trainer TensorFlow ────────────────
+  trainer-tensorflow:
+    build: ./trainer-tensorflow
+    networks:
+      - backend-net
+    depends_on:
+      - kafka
+    volumes:
+      - datasets:/data/datasets
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 2G
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    restart: unless-stopped
+
+networks:
+  frontend-net:
+    driver: bridge
+  backend-net:
+    driver: bridge
+
+volumes:
+  pgdata:
+  datasets:
