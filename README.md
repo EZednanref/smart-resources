@@ -4,7 +4,10 @@ Bienvenue dans **Smart Resources**, une plateforme de benchmark pour comparer le
 
 L'application affiche en temps réel les courbes d'entraînement avec actualisation automatique toutes les **5 secondes**.
 
----
+Groupe : 
+Axel Malherbe
+Antoine Kraus 
+Enzo Fernandez 
 
 ## Lancement rapide
 
