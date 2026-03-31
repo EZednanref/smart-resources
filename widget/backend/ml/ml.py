@@ -14,13 +14,11 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Constantes
 MAX_SECONDS = 300
 CAP_CPU = 50
 CAP_MEM = 10
-# Paramètres entrainement :
 BATCH_SIZE = 8
-EPOCHS = 5
+EPOCHS = 20
 
 
 class CPURAMPredictor:
@@ -49,7 +47,6 @@ class CPURAMPredictor:
 
     def create_model(self, input_shape):
         """Modèle choisi : Même si le temps d'entrainement est plus long, le LSTM à un meilleur traitement des longues séquences"""
-        # Test
         model = keras.Sequential(
             [
                 keras.layers.LSTM(64, input_shape=input_shape, return_sequences=True),
@@ -117,7 +114,6 @@ class CPURAMPredictor:
 
         return np.array(X), np.array(y)
 
-    # Ré-entraîner le modèle avec les nouvelles données
     def train_models(self):
         with self.lock:
             if len(self.cpu_history) < self.sequence_length + 20:
@@ -137,14 +133,12 @@ class CPURAMPredictor:
             if X_cpu is None or X_ram is None:
                 return False
 
-            # Si les modèles n'ont pas encore été entrainés, il faut les créer
             if self.cpu_model is None:
                 self.cpu_model = self.create_model((self.sequence_length, 1))
 
             if self.ram_model is None:
                 self.ram_model = self.create_model((self.sequence_length, 1))
 
-            # Entraînement modèle CPU
             self.cpu_model.fit(
                 X_cpu,
                 y_cpu,
@@ -154,7 +148,6 @@ class CPURAMPredictor:
                 validation_split=0.2,
             )
 
-            # Entraînement modèle RAM
             self.ram_model.fit(
                 X_ram,
                 y_ram,
@@ -174,7 +167,6 @@ class CPURAMPredictor:
             return None
 
         with self.lock:
-            # Préparer les dernières données
             cpu_recent = np.array(
                 list(self.cpu_history)[-self.sequence_length :]
             ).reshape(-1, 1)
@@ -182,11 +174,9 @@ class CPURAMPredictor:
                 list(self.ram_history)[-self.sequence_length :]
             ).reshape(-1, 1)
 
-            # Normaliser
             cpu_scaled = self.cpu_scaler.transform(cpu_recent)
             ram_scaled = self.ram_scaler.transform(ram_recent)
 
-            # Prédictions itératives
             cpu_predictions = []
             ram_predictions = []
 
@@ -194,23 +184,19 @@ class CPURAMPredictor:
             ram_input = ram_scaled.copy()
 
             for _ in range(min(steps, self.prediction_horizon)):
-                # Prédire CPU
                 cpu_pred = self.cpu_model.predict(
                     cpu_input.reshape(1, self.sequence_length, 1), verbose=0
                 )
                 cpu_predictions.append(cpu_pred[0][0])
 
-                # Prédire RAM
                 ram_pred = self.ram_model.predict(
                     ram_input.reshape(1, self.sequence_length, 1), verbose=0
                 )
                 ram_predictions.append(ram_pred[0][0])
 
-                # Mettre à jour les inputs pour la prochaine prédiction
                 cpu_input = np.append(cpu_input[1:], cpu_pred).reshape(-1, 1)
                 ram_input = np.append(ram_input[1:], ram_pred).reshape(-1, 1)
 
-            # Dénormaliser
             cpu_predictions = self.cpu_scaler.inverse_transform(
                 np.array(cpu_predictions).reshape(-1, 1)
             ).flatten()
@@ -219,7 +205,6 @@ class CPURAMPredictor:
                 np.array(ram_predictions).reshape(-1, 1)
             ).flatten()
 
-            # Limiter entre 0 et 100
             cpu_predictions = np.clip(cpu_predictions, 0, 100)
             ram_predictions = np.clip(ram_predictions, 0, 100)
 
@@ -230,11 +215,9 @@ class CPURAMPredictor:
             }
 
 
-# Instance globale
 predictor = CPURAMPredictor(sequence_length=30, prediction_horizon=120)
 
 
-# Thread de collecte de données
 def data_collector():
     """Collecter les données depuis le metrics-server toutes les secondes"""
     metrics_url = os.getenv("METRICS_URL", "http://metrics-server:3000/api/metrics")
@@ -251,7 +234,6 @@ def data_collector():
 
                 predictor.add_data_point(cpu_percent, ram_percent, processes)
 
-                # Ré-entraîner le modèle toutes les 60 secondes
                 if (
                     len(predictor.cpu_history) % 60 == 0
                     and len(predictor.cpu_history) > 50
@@ -264,12 +246,10 @@ def data_collector():
         time.sleep(1)
 
 
-# Démarrer la collecte en arrière-plan
 collector_thread = threading.Thread(target=data_collector, daemon=True)
 collector_thread.start()
 
 
-# Routes API
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify(
@@ -284,8 +264,8 @@ def health():
 @app.route("/predict", methods=["GET"])
 def predict():
     """Endpoint de prédiction"""
-    steps = int(request.args.get("steps", 60))  # Par défaut 60 secondes
-    steps = min(max(steps, 30), 120)  # Entre 30 et 120 secondes
+    steps = int(request.args.get("steps", 60))  
+    steps = min(max(steps, 30), 120)  
 
     if not predictor.is_trained:
         return jsonify(
@@ -332,12 +312,10 @@ def metrics():
     """Métriques Prometheus"""
     output = []
 
-    # Métrique: statut du modèle
     output.append("# HELP ml_model_trained Model training status")
     output.append("# TYPE ml_model_trained gauge")
     output.append(f"ml_model_trained {1 if predictor.is_trained else 0}")
 
-    # Métrique: points de données
     output.append("# HELP ml_data_points Number of data points collected")
     output.append("# TYPE ml_data_points gauge")
     output.append(f"ml_data_points {len(predictor.cpu_history)}")
@@ -347,7 +325,6 @@ def metrics():
 @app.route("/", methods=["GET"])
 def index():
     try:
-        # On cherche le fichier à la racine du dossier de travail du conteneur
         with open("ml-dashboard.html", "r", encoding="utf-8") as f:
             content = f.read()
         return render_template_string(content)

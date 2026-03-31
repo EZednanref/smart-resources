@@ -16,10 +16,9 @@ from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 from kafka import KafkaProducer
 
-# ──────────────── Configuration ────────────────
 KAFKA_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 DATASET_PATH = "/data/datasets/pytorch"
-NUM_EPOCHS = 20
+NUM_EPOCHS = 20  
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
 
@@ -30,7 +29,6 @@ logging.basicConfig(
 logger = logging.getLogger("trainer-pytorch")
 
 
-# ──────────────── Kafka producer (with retries) ────────────────
 def get_producer(max_retries: int = 60, wait: int = 5) -> KafkaProducer:
     for attempt in range(1, max_retries + 1):
         try:
@@ -46,7 +44,6 @@ def get_producer(max_retries: int = 60, wait: int = 5) -> KafkaProducer:
     raise RuntimeError("Impossible de se connecter à Kafka")
 
 
-# ──────────────── Modèle Fashion MNIST ────────────────
 class FashionMNISTNet(nn.Module):
     def __init__(self):
         super().__init__()
@@ -71,7 +68,6 @@ class FashionMNISTNet(nn.Module):
         return self.classifier(x)
 
 
-# ──────────────── Modèle CIFAR-100 ────────────────
 class CIFAR100Net(nn.Module):
     def __init__(self):
         super().__init__()
@@ -102,7 +98,6 @@ class CIFAR100Net(nn.Module):
         return self.classifier(x)
 
 
-# ──────────────── Boucle de training ────────────────
 def train_model(producer, model, train_loader, test_loader, dataset_name):
     device = torch.device("cpu")
     model = model.to(device)
@@ -130,7 +125,6 @@ def train_model(producer, model, train_loader, test_loader, dataset_name):
             total += target.size(0)
             correct += predicted.eq(target).sum().item()
 
-        # Évaluation sur le jeu de test
         model.eval()
         test_correct = 0
         test_total = 0
@@ -168,11 +162,9 @@ def train_model(producer, model, train_loader, test_loader, dataset_name):
         )
 
 
-# ──────────────── Main ────────────────
 def main():
     producer = get_producer()
 
-    # ── Fashion MNIST ──
     logger.info("Démarrage de l'entraînement Fashion MNIST …")
     transform_mnist = transforms.Compose([
         transforms.ToTensor(),
@@ -180,12 +172,13 @@ def main():
     ])
     train_ds = datasets.FashionMNIST(DATASET_PATH, train=True, download=True, transform=transform_mnist)
     test_ds  = datasets.FashionMNIST(DATASET_PATH, train=False, download=True, transform=transform_mnist)
-    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
-    test_loader  = DataLoader(test_ds,  batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
+    small_train_ds = torch.utils.data.Subset(train_ds, range(2000))
+    small_test_ds = torch.utils.data.Subset(test_ds, range(500))
+    train_loader = DataLoader(small_train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+    test_loader  = DataLoader(small_test_ds,  batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
 
     train_model(producer, FashionMNISTNet(), train_loader, test_loader, "fashion_mnist")
 
-    # ── CIFAR-100 ──
     logger.info("Démarrage de l'entraînement CIFAR-100 …")
     transform_cifar = transforms.Compose([
         transforms.RandomHorizontalFlip(),
@@ -199,14 +192,15 @@ def main():
     ])
     train_ds = datasets.CIFAR100(DATASET_PATH, train=True, download=True, transform=transform_cifar)
     test_ds  = datasets.CIFAR100(DATASET_PATH, train=False, download=True, transform=transform_cifar_test)
-    train_loader = DataLoader(train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
-    test_loader  = DataLoader(test_ds,  batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
+    small_train_ds = torch.utils.data.Subset(train_ds, range(2000))
+    small_test_ds = torch.utils.data.Subset(test_ds, range(500))
+    train_loader = DataLoader(small_train_ds, batch_size=BATCH_SIZE, shuffle=True, num_workers=2)
+    test_loader  = DataLoader(small_test_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=2)
 
     train_model(producer, CIFAR100Net(), train_loader, test_loader, "cifar100")
 
     logger.info("Tous les entraînements PyTorch sont terminés.")
 
-    # Maintient le conteneur en vie
     while True:
         time.sleep(60)
 

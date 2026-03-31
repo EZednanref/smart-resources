@@ -10,7 +10,6 @@ class MetricsCollector {
   constructor() {
     this.previousCpuUsage = this.getCpuUsage();
     this.processes = [];
-    // Détecter si on est dans Docker avec accès à /proc de l'hôte
     this.hostProc = process.env.HOST_PROC || '/proc';
     this.isDocker = process.env.HOST_PROC ? true : false;
   }
@@ -59,7 +58,6 @@ class MetricsCollector {
 
   async getProcesses() {
     const platform = os.platform();
-    // Si on a accès à /proc de l'hôte -> on appelle getProcessesFromProc
     if (this.isDocker && platform === 'linux') {
       return await this.getProcessesFromProc();
     }
@@ -78,7 +76,6 @@ class MetricsCollector {
     }
   }
   
-  // lire directement depuis /proc
   async getProcessesFromProc() {
     try {
       const pids = await fs.readdir(this.hostProc);
@@ -87,13 +84,11 @@ class MetricsCollector {
 
       // La on va récuperer toutes les stats de chaque processus, comme ça au lieu d'avoir la ram totale / cpu total,
       // on a la valeur spécifique à chaque processus.
-      // c'est mieux pour l'entrainement du modèle.
+      
       for (const pid of pids) {
-        // Ne garder que les PIDs numériques
         if (!/^\d+$/.test(pid)) continue;
         
         try {
-          // Pour accéder à tous les processus de l'hôte
           const statPath = path.join(this.hostProc, pid, 'stat');
           const cmdlinePath = path.join(this.hostProc, pid, 'cmdline');
           const stat = await fs.readFile(statPath, 'utf8');
@@ -110,14 +105,12 @@ class MetricsCollector {
           const name = cmdline || statMatch[1];
           const statFields = statMatch[2].split(/\s+/);
           
-          // CPU time (user + system)
           const utime = parseInt(statFields[11]) || 0;
           const stime = parseInt(statFields[12]) || 0;
           const cpuTime = utime + stime;
           
-          // Memory (RSS en pages)
           const rss = parseInt(statFields[21]) || 0;
-          const memoryBytes = rss * 4096; // Page size = 4KB
+          const memoryBytes = rss * 4096;
           const totalMem = os.totalmem();
           const memoryPercent = (memoryBytes / totalMem) * 100;
           
@@ -145,7 +138,6 @@ class MetricsCollector {
   
   async getLinuxProcesses() {
     try {
-      // Si on est en mode Docker, utiliser nsenter pour exécuter ps sur l'hôte
       let command;
       if (this.isDocker) {
 

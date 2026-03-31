@@ -3,7 +3,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from init_db import init_default_users
+from init_db import init_default_users, init_test_data, trigger_auto_trainings
 from kafka_utils import start_kafka_consumer
 from routes import auth as auth_routes
 from routes import training as training_routes
@@ -20,8 +20,12 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     logger.info("Initialisation de la base de données …")
     init_default_users()
+    init_test_data()
     logger.info("Démarrage du consumer Kafka …")
     task = asyncio.create_task(start_kafka_consumer())
+    
+    asyncio.create_task(trigger_auto_trainings())
+    
     yield
     task.cancel()
     logger.info("Arrêt de l'API.")

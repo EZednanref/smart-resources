@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # ──────────────── Frontend (Nginx) ────────────────
   frontend:
     build: ./frontend
     ports:
@@ -12,7 +11,6 @@ services:
       - api
     restart: unless-stopped
 
-  # ──────────────── API (FastAPI) ────────────────
   api:
     build: ./api
     networks:
@@ -31,7 +29,6 @@ services:
       JWT_EXPIRATION_MINUTES: "120"
     restart: unless-stopped
 
-  # ──────────────── Base de données (PostgreSQL) ────────────────
   db:
     image: postgres:15-alpine
     networks:
@@ -49,7 +46,6 @@ services:
       retries: 10
     restart: unless-stopped
 
-  # ──────────────── Zookeeper ────────────────
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     networks:
@@ -59,7 +55,6 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     restart: unless-stopped
 
-  # ──────────────── Kafka ────────────────
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     networks:
@@ -75,7 +70,6 @@ services:
       KAFKA_LOG_RETENTION_HOURS: 1
     restart: unless-stopped
 
-  # ──────────────── Trainer PyTorch ────────────────
   trainer-pytorch:
     build: ./trainer-pytorch
     networks:
@@ -93,7 +87,6 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
     restart: unless-stopped
 
-  # ──────────────── Trainer TensorFlow ────────────────
   trainer-tensorflow:
     build: ./trainer-tensorflow
     networks:

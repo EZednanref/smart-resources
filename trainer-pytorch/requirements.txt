@@ -1,2 +1,6 @@
+
 kafka-python==2.0.2
 psutil==5.9.8
+torch==2.2.2
+torchvision==0.17.2
+numpy==1.26.4

@@ -1,10 +1,3 @@
-# pendant 30 parse les données de ram et cpu
-# et extraire un json avec frame par frame toutes les données utiles
-# pour l'entrainement du modèle
-# on utilise psutil et top pour récupérer les données en input
-# on stocke le tout dans un json performance_data.json
-# sous forme de liste de dictionnaires : 
-# {"timestamp": "...", "cpu_usage": ..., "ram_usage": ..., "top_output": "..."} 
 import psutil
 import json
 import time

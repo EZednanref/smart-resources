@@ -49,7 +49,6 @@ const systemInfoGauge = new client.Gauge({
   labelNames: ['platform', 'hostname', 'cores']
 });
 
-// Enregistrer les métriques
 register.registerMetric(systemCpuGauge);
 register.registerMetric(systemMemoryGauge);
 register.registerMetric(systemMemoryBytesGauge);
@@ -57,16 +56,13 @@ register.registerMetric(processCpuGauge);
 register.registerMetric(processMemoryGauge);
 register.registerMetric(systemInfoGauge);
 
-// Créer le collecteur
 const collector = new MetricsCollector();
 
-// Fonction pour mettre à jour les métriques
 async function updateMetrics() {
   try {
     const metrics = await collector.getAllMetrics();
     processCountGauge.set(metrics.processes.length);
-    console.log(`📊 Nombre de processus récupérés: ${metrics.processes.length}`);
-    // Mettre à jour les métriques système
+    console.log(`Nombre de processus récupérés: ${metrics.processes.length}`);
     systemCpuGauge.set(metrics.cpu.percentage);
     systemMemoryGauge.set(metrics.memory.percentage);
     
@@ -74,18 +70,15 @@ async function updateMetrics() {
     systemMemoryBytesGauge.set({ type: 'free' }, metrics.memory.free);
     systemMemoryBytesGauge.set({ type: 'total' }, metrics.memory.total);
 
-    // Info système
     systemInfoGauge.set({
       platform: metrics.system.platform,
       hostname: metrics.system.hostname,
       cores: metrics.cpu.cores.toString()
     }, 1);
 
-    // Réinitialiser les métriques des processus
     processCpuGauge.reset();
     processMemoryGauge.reset();
 
-    // Mettre à jour les métriques des processus
     metrics.processes.forEach(proc => {
       const labels = { pid: proc.pid.toString(), name: proc.name };
       processCpuGauge.set(labels, proc.cpu);
@@ -97,11 +90,9 @@ async function updateMetrics() {
   }
 }
 
-// Mettre à jour les métriques toutes les 2 secondes
 setInterval(updateMetrics, 2000);
-updateMetrics(); // Première mise à jour immédiate
+updateMetrics(); 
 
-// Endpoint Prometheus /metrics
 app.get('/metrics', async (req, res) => {
   try {
     res.set('Content-Type', register.contentType);
@@ -112,7 +103,6 @@ app.get('/metrics', async (req, res) => {
   }
 });
 
-// Endpoint JSON pour le widget HTML
 app.get('/api/metrics', async (req, res) => {
   try {
     const metrics = await collector.getAllMetrics();
@@ -122,7 +112,6 @@ app.get('/api/metrics', async (req, res) => {
   }
 });
 
-// Health check
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'healthy',
@@ -132,7 +121,7 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`📊 Prometheus metrics: http://localhost:${PORT}/metrics`);
-  console.log(`📈 JSON API: http://localhost:${PORT}/api/metrics`);
-  console.log(`💚 Health check: http://localhost:${PORT}/health`);
+  console.log(`Prometheus metrics: http://localhost:${PORT}/metrics`);
+  console.log(`JSON API: http://localhost:${PORT}/api/metrics`);
+  console.log(`Health check: http://localhost:${PORT}/health`);
 });

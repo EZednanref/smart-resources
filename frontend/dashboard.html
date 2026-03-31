@@ -8,7 +8,6 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <!-- ─── Navbar ─────────────────────────────────── -->
     <nav class="navbar">
         <div class="nav-brand">Smart Resources</div>
         <div class="nav-links">
@@ -21,33 +20,62 @@
     </nav>
 
     <main class="content">
-        <!-- ═══════ Dashboard Tab ═══════ -->
         <section id="dashboard-tab" class="tab-content active">
             <div class="dashboard-header">
                 <h2>Benchmark ML – Performances en temps réel</h2>
+                
+                <div class="dataset-selector">
+                    <label for="viewDatasetSelect">Visualiser dataset :</label>
+                    <select id="viewDatasetSelect">
+                        <option value="cifar100">CIFAR-100</option>
+                        <option value="fashion_mnist">Fashion MNIST</option>
+                    </select>
+                </div>
+                
                 <div id="training-status" class="training-status"></div>
+                
+                <!-- Training Control Panel (Admin Only) -->
+                <div class="training-control admin-only" id="trainingControlPanel" style="display:none;">
+                    <h3>Lancer un Training</h3>
+                    <form id="trainingForm">
+                        <div class="form-group">
+                            <label for="librarySelect">Librairie :</label>
+                            <select id="librarySelect" name="library" required>
+                                <option value="">-- Sélectionner --</option>
+                                <option value="pytorch">PyTorch</option>
+                                <option value="tensorflow">TensorFlow</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="datasetSelect">Dataset :</label>
+                            <select id="datasetSelect" name="dataset" required>
+                                <option value="">-- Sélectionner --</option>
+                                <option value="cifar100">CIFAR-100</option>
+                                <option value="fashion_mnist">Fashion MNIST</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn-primary">Démarrer Training</button>
+                    </form>
+                    <div id="trainingMessage" class="message"></div>
+                </div>
             </div>
 
             <div class="charts-grid">
-                <!-- Précision -->
                 <div class="chart-card">
                     <h3>Précision du modèle</h3>
                     <canvas id="accuracyChart"></canvas>
                 </div>
 
-                <!-- Vitesse -->
                 <div class="chart-card">
                     <h3>Vitesse d'exécution (s / epoch)</h3>
                     <canvas id="speedChart"></canvas>
                 </div>
 
-                <!-- CPU – admin uniquement -->
                 <div class="chart-card admin-only" id="cpuCard" style="display:none;">
                     <h3>Utilisation CPU (%)</h3>
                     <canvas id="cpuChart"></canvas>
                 </div>
 
-                <!-- RAM – admin uniquement -->
                 <div class="chart-card admin-only" id="ramCard" style="display:none;">
                     <h3>Utilisation RAM (%)</h3>
                     <canvas id="ramChart"></canvas>
@@ -55,7 +83,6 @@
             </div>
         </section>
 
-        <!-- ═══════ Contacts Tab ═══════ -->
         <section id="contacts-tab" class="tab-content">
             <div class="info-page">
                 <h2>Contacts</h2>
@@ -75,7 +102,6 @@
             </div>
         </section>
 
-        <!-- ═══════ CGU Tab ═══════ -->
         <section id="cgu-tab" class="tab-content">
             <div class="info-page">
                 <h2>Conditions Générales d'Utilisation</h2>

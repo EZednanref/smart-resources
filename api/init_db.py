@@ -1,6 +1,8 @@
 import logging
+import asyncio
+from datetime import datetime, timedelta
 from database import SessionLocal, engine, Base
-from models import User
+from models import User, TrainingSession, TrainingMetric
 from auth import hash_password
 
 logger = logging.getLogger(__name__)
@@ -66,3 +68,32 @@ def init_default_users():
         db.rollback()
     finally:
         db.close()
+
+async def trigger_auto_trainings():
+    """Send automatic training commands to Kafka at startup."""
+    try:
+        from kafka_utils import send_training_command
+        
+        await asyncio.sleep(3)
+        
+        trainings = [
+            {"library": "pytorch", "dataset": "cifar100"},
+            {"library": "pytorch", "dataset": "fashion_mnist"},
+            {"library": "tensorflow", "dataset": "cifar100"},
+            {"library": "tensorflow", "dataset": "fashion_mnist"},
+        ]
+        
+        for training in trainings:
+            try:
+                await send_training_command({
+                    "action": "start",
+                    **training
+                })
+                logger.info("Triggered training: %s / %s", training["library"], training["dataset"])
+                await asyncio.sleep(1)  
+            except Exception as e:
+                logger.error("Failed to trigger training: %s", e)
+    except Exception as exc:
+        logger.error("Error in trigger_auto_trainings: %s", exc)
+def init_test_data():
+    """Seed test training sessions and metrics for demo purposes."""

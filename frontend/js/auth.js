@@ -1,18 +1,8 @@
-/* ═══════════════════════════════════════════
-   Smart Resources – Auth (login + register)
-   ═══════════════════════════════════════════ */
+
 
 (function () {
     "use strict";
 
-    // Redirect to dashboard if already logged in
-    const token = localStorage.getItem("sr_token");
-    if (token) {
-        window.location.href = "dashboard.html";
-        return;
-    }
-
-    /* ── Login ────────────────────────────── */
     const loginForm = document.getElementById("loginForm");
     if (loginForm) {
         loginForm.addEventListener("submit", async (e) => {
@@ -46,7 +36,6 @@
         });
     }
 
-    /* ── Register ─────────────────────────── */
     const registerForm = document.getElementById("registerForm");
     if (registerForm) {
         registerForm.addEventListener("submit", async (e) => {
