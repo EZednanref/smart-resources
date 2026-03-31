@@ -5,7 +5,7 @@ Communique uniquement via Kafka (training-metrics).
 
 import os
 
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  # Masquer les logs TF
 
 import time
 import json
@@ -19,7 +19,7 @@ from kafka import KafkaProducer
 
 KAFKA_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 DATASET_PATH = "/data/datasets/tensorflow"
-NUM_EPOCHS = 20
+NUM_EPOCHS = 10
 BATCH_SIZE = 64
 
 logging.basicConfig(
@@ -29,6 +29,7 @@ logging.basicConfig(
 logger = logging.getLogger("trainer-tensorflow")
 
 
+# ──────────────── Kafka producer (with retries) ────────────────
 def get_producer(max_retries: int = 60, wait: int = 5) -> KafkaProducer:
     for attempt in range(1, max_retries + 1):
         try:
@@ -44,6 +45,7 @@ def get_producer(max_retries: int = 60, wait: int = 5) -> KafkaProducer:
     raise RuntimeError("Impossible de se connecter à Kafka")
 
 
+# ──────────────── Callback Keras → Kafka ────────────────
 class KafkaMetricsCallback(keras.callbacks.Callback):
     """Envoie les métriques de chaque epoch vers Kafka."""
 
@@ -62,6 +64,7 @@ class KafkaMetricsCallback(keras.callbacks.Callback):
     def on_epoch_end(self, epoch, logs=None):
         epoch_time = time.time() - self._epoch_start
 
+        # Évaluation sur le jeu de test
         test_loss, test_acc = self.model.evaluate(
             self.x_test, self.y_test, verbose=0
         )
@@ -93,6 +96,7 @@ class KafkaMetricsCallback(keras.callbacks.Callback):
         )
 
 
+# ──────────────── Modèle Fashion MNIST ────────────────
 def build_fashion_mnist_model():
     return keras.Sequential(
         [
@@ -110,6 +114,7 @@ def build_fashion_mnist_model():
     )
 
 
+# ──────────────── Modèle CIFAR-100 ────────────────
 def build_cifar100_model():
     return keras.Sequential(
         [
@@ -132,13 +137,16 @@ def build_cifar100_model():
     )
 
 
+# ──────────────── Main ────────────────
 def main():
     producer = get_producer()
 
+    # ── Fashion MNIST ──
     logger.info("Démarrage de l'entraînement Fashion MNIST …")
     (x_train, y_train), (x_test, y_test) = keras.datasets.fashion_mnist.load_data()
     x_train = x_train.reshape(-1, 28, 28, 1).astype("float32") / 255.0
     x_test = x_test.reshape(-1, 28, 28, 1).astype("float32") / 255.0
+    # Réduire la taille du dataset pour la démo
     x_train, y_train = x_train[:2000], y_train[:2000]
     x_test, y_test = x_test[:500], y_test[:500]
 
@@ -162,6 +170,7 @@ def main():
     y_test = y_test.flatten()
     x_train = x_train.astype("float32") / 255.0
     x_test = x_test.astype("float32") / 255.0
+    # Réduire la taille du dataset pour la démo
     x_train, y_train = x_train[:2000], y_train[:2000]
     x_test, y_test = x_test[:500], y_test[:500]
 
@@ -180,6 +189,7 @@ def main():
 
     logger.info("Tous les entraînements TensorFlow sont terminés.")
 
+    # Maintient le conteneur en vie
     while True:
         time.sleep(60)
 

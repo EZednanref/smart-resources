@@ -18,7 +18,7 @@ from kafka import KafkaProducer
 
 KAFKA_SERVERS = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "kafka:9092")
 DATASET_PATH = "/data/datasets/pytorch"
-NUM_EPOCHS = 20  
+NUM_EPOCHS = 10  
 BATCH_SIZE = 64
 LEARNING_RATE = 1e-3
 
