@@ -17,7 +17,7 @@ sudo docker-compose up -d --build
 
 Puis ouvrir **http://localhost** dans un navigateur.
 
----
+A noter : Le chargement des données peut prendre du temps 
 
 ## Utilisateurs pré-existants
 
