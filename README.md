@@ -1,10 +1,10 @@
 # Smart Resources – Plateforme de Benchmark ML
 
-Bienvenue dans **Smart Resources**, une plateforme de benchmark pour comparer les performances de **PyTorch** et **TensorFlow** sur les datasets **CIFAR-100** et **Fashion MNIST**.
+Le projet **Smart Resources** est une plateforme de benchmark pour comparer les performances de **PyTorch** et **TensorFlow** sur les datasets **CIFAR-100** et **Fashion MNIST**.
 
 L'application affiche en temps réel les courbes d'entraînement avec actualisation automatique toutes les **5 secondes**.
 
-Groupe : 
+## Groupe : 
 Axel Malherbe
 Antoine Kraus 
 Enzo Fernandez 
